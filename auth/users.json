@@ -1,0 +1,16 @@
+{
+    "updatedAt":  "2026-10-05T15:45:11.000Z",
+    "users":  [
+                  {
+                      "name":  "超级管理员",
+                      "account":  "admin",
+                      "status":  "approved",
+                      "approvedAt":  "2026-10-05T15:45:11.000Z",
+                      "role":  "admin",
+                      "createdAt":  "2026-10-05T15:45:11.000Z",
+                      "salt":  "iJBwtSteLE73fhiJc5HfCA==",
+                      "hash":  "GaGTYqV0ZMx3/SynzRCsJTV6Q3vvSKbW4lbTwmerd2M="
+                  }
+              ],
+    "version":  1
+}
