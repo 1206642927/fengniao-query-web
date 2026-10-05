@@ -402,8 +402,9 @@
   }
 
   async function deleteJob(id) {
-    var t = tkA();
-    if (!t) { alert('系统尚未完成配置'); return; }
+    // 删除需要“写权限”：优先用本机保存的管理员令牌，内置的只读令牌删不了
+    var t = lsTok() || tkA();
+    if (!t) { alert('请先打开 #setup，在①处保存管理员令牌（删除需要写权限）'); return; }
     if (!confirm('确定删除云端结果「' + id + '」吗？\n\n· 已下载到本地的文件不受影响\n· 删除后网页历史里将不再显示该任务')) return;
     var paths = ['outbox/' + id + '.结果.xlsx', 'outbox/' + id + '.结果.csv', 'outbox/' + id + '.progress.json', 'inbox/' + id + '.json'];
     var delCount = 0, errs = [];
@@ -420,7 +421,7 @@
       } catch (e) { errs.push(p + ' → ' + e.message); }
     }
     if (!delCount && errs.length) {
-      alert('删除失败：\n' + errs.join('\n') + '\n\n提示：当前令牌需要具备该仓库的 Contents 写入权限（管理员用 ghp_ 经典令牌即可）。');
+      alert('删除失败：\n' + errs.join('\n') + '\n\n提示：删除需要“写权限”的令牌——请打开 #setup，在①处把管理员令牌（ghp_...）粘贴保存后重试。');
     } else if (errs.length) {
       alert('已删除 ' + delCount + ' 个文件，以下失败：\n' + errs.join('\n'));
     }
