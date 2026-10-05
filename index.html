@@ -23,6 +23,8 @@
   button:hover { background:var(--pri2); }
   button.ghost { background:#eef3ff; color:var(--pri); }
   button.ghost:hover { background:#e0eaff; }
+  button.ghost.danger { background:#fdecec; color:var(--err); }
+  button.ghost.danger:hover { background:#fbd9d9; }
   button.sm { padding:4px 10px; font-size:12.5px; }
   button:disabled { background:#c9d3e4; cursor:not-allowed; color:#fff; }
   .msg { font-size:12.5px; margin-top:8px; min-height:18px; }
@@ -386,6 +388,9 @@
       var kind = e.target.classList.contains('jx') ? 'xlsx' : 'csv';
       downloadJob(id, kind);
     }
+    if (e.target.classList.contains('jd')) {
+      deleteJob(e.target.getAttribute('data-id'));
+    }
   });
   async function downloadJob(id, kind) {
     try {
@@ -395,6 +400,32 @@
       document.body.appendChild(a); a.click();
       setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 5000);
     } catch (e) { alert('下载失败：' + e.message); }
+  }
+
+  async function deleteJob(id) {
+    var t = tkA();
+    if (!t) { alert('系统尚未完成配置'); return; }
+    if (!confirm('确定删除云端结果「' + id + '」吗？\n\n· 已下载到本地的文件不受影响\n· 删除后网页历史里将不再显示该任务')) return;
+    var paths = ['outbox/' + id + '.结果.xlsx', 'outbox/' + id + '.结果.csv', 'outbox/' + id + '.progress.json', 'inbox/' + id + '.json'];
+    var delCount = 0, errs = [];
+    for (var i = 0; i < paths.length; i++) {
+      var p = paths[i];
+      try {
+        var meta = await gh('/repos/' + CFG.owner + '/' + CFG.dataRepo + '/contents/' + encPath(p) + '?ref=main&t=' + Date.now(), {}, t);
+        if (meta.status === 404) continue;
+        if (!meta.ok) throw new Error('HTTP ' + meta.status);
+        var mj = await meta.json();
+        var res = await gh('/repos/' + CFG.owner + '/' + CFG.dataRepo + '/contents/' + encPath(p), { method: 'DELETE', body: JSON.stringify({ message: '删除任务 ' + id, sha: mj.sha, branch: 'main' }) }, t);
+        if (!res.ok) { var ej = await res.json().catch(function () { return null; }); throw new Error((ej && ej.message) || ('HTTP ' + res.status)); }
+        delCount++;
+      } catch (e) { errs.push(p + ' → ' + e.message); }
+    }
+    if (!delCount && errs.length) {
+      alert('删除失败：\n' + errs.join('\n') + '\n\n提示：当前令牌需要具备该仓库的 Contents 写入权限（管理员用 ghp_ 经典令牌即可）。');
+    } else if (errs.length) {
+      alert('已删除 ' + delCount + ' 个文件，以下失败：\n' + errs.join('\n'));
+    }
+    refreshHistory();
   }
 
   // ---------- 历史 ----------
@@ -410,12 +441,13 @@
       var files = (items || []).filter(function (x) { return x.type === 'file' && /\.结果\.xlsx$/.test(x.name); })
         .sort(function (a, b) { return b.name < a.name ? -1 : 1; }).slice(0, 30);
       if (!files.length) { $('#historyBox').innerHTML = '<span class="small">还没有历史结果</span>'; return; }
-      var html = '<table><thead><tr><th>任务</th><th>大小</th><th style="width:180px">下载</th></tr></thead><tbody>';
+      var html = '<table><thead><tr><th>任务</th><th>大小</th><th style="width:250px">操作</th></tr></thead><tbody>';
       files.forEach(function (f) {
         var id = f.name.replace(/\.结果\.xlsx$/, '');
         html += '<tr><td>' + esc(id) + '</td><td class="small">' + fmtSize(f.size) + '</td><td>' +
           '<button class="ghost sm jx" data-id="' + esc(id) + '">Excel</button> ' +
-          '<button class="ghost sm jc" data-id="' + esc(id) + '">CSV</button></td></tr>';
+          '<button class="ghost sm jc" data-id="' + esc(id) + '">CSV</button> ' +
+          '<button class="ghost sm jd danger" data-id="' + esc(id) + '">删除</button></td></tr>';
       });
       html += '</tbody></table>';
       $('#historyBox').innerHTML = html;
