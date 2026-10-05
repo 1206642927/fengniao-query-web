@@ -109,8 +109,8 @@
 
 <footer>内部工具 · 数据来源：风鸟（riskbird.com）</footer>
 
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/browsers/sodium.js"></script>
+<script src="./vendor/xlsx.full.min.js"></script>
+<script src="./vendor/sodium.js" async></script>
 <script>
 (function () {
   'use strict';
@@ -188,21 +188,39 @@
     $('#tokInput').value = ''; setMsg('#tokMsg', '已清除', 'ok'); updateTokStatus();
   });
 
+  // 确保加密组件就绪（脚本异步加载，最多等 ~16 秒，失败自动补载一次）
+  async function ensureSodium() {
+    for (var i = 0; i < 40 && typeof sodium === 'undefined'; i++) { await new Promise(function (r) { setTimeout(r, 400); }); }
+    if (typeof sodium === 'undefined') {
+      await new Promise(function (resolve, reject) {
+        var s = document.createElement('script');
+        s.src = './vendor/sodium.js?r=' + Date.now();
+        s.onload = function () { resolve(); };
+        s.onerror = function () { reject(new Error('加密组件加载失败，请刷新页面后重试')); };
+        document.head.appendChild(s);
+      });
+      for (var j = 0; j < 40 && typeof sodium === 'undefined'; j++) { await new Promise(function (r) { setTimeout(r, 400); }); }
+      if (typeof sodium === 'undefined') throw new Error('加密组件加载失败，请刷新页面后重试');
+    }
+    await sodium.ready;
+    return sodium;
+  }
+
   // 更新风鸟 Cookie（管理员用；需要令牌含 Secrets 写权限，如经典令牌）
   $('#updateCookie').addEventListener('click', async function () {
     var t = lsTok();
     if (!t) return setMsg('#cookieMsg', '请先在上方①处保存管理员令牌（需含 Secrets 写权限，如 ghp_ 经典令牌）', 'err');
     var cookie = extractCookie($('#cookieBox').value);
     if (!cookie) return setMsg('#cookieMsg', '没有解析到有效 cookie（需包含 token=...）', 'err');
-    if (typeof sodium === 'undefined') return setMsg('#cookieMsg', '加密组件加载失败（网络/CDN 问题），可稍后重试', 'err');
+    var S;
+    try { S = await ensureSodium(); } catch (e) { return setMsg('#cookieMsg', e.message, 'err'); }
     setMsg('#cookieMsg', '正在加密并保存…', '');
     try {
-      await sodium.ready;
       var pkRes = await gh('/repos/' + CFG.owner + '/' + CFG.dataRepo + '/actions/secrets/public-key', {}, t);
       if (!pkRes.ok) throw new Error('取公钥失败 HTTP ' + pkRes.status + '（令牌需含 Secrets 写权限）');
       var pk = await pkRes.json();
-      var enc = sodium.crypto_box_seal(sodium.from_string(cookie), sodium.from_base64(pk.key, sodium.base64_variants.ORIGINAL));
-      var val = sodium.to_base64(enc, sodium.base64_variants.ORIGINAL);
+      var enc = S.crypto_box_seal(S.from_string(cookie), S.from_base64(pk.key, S.base64_variants.ORIGINAL));
+      var val = S.to_base64(enc, S.base64_variants.ORIGINAL);
       var res = await gh('/repos/' + CFG.owner + '/' + CFG.dataRepo + '/actions/secrets/RISKBIRD_COOKIE', { method: 'PUT', body: JSON.stringify({ encrypted_value: val, key_id: pk.key_id }) }, t);
       if (!res.ok && res.status !== 201 && res.status !== 204) { var j = await res.json().catch(function () { return null; }); throw new Error((j && j.message) || ('HTTP ' + res.status)); }
       setMsg('#cookieMsg', '✅ 已加密保存（下一个任务生效）', 'ok');
