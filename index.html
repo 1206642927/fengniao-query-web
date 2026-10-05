@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>凤鸟企业信息批量查询（网页版）</title>
+<style>
+  :root { --bg:#f5f7fb; --card:#fff; --line:#e3e8f0; --txt:#26303d; --sub:#67748a; --pri:#2f6fed; --pri2:#1f57c9; --ok:#12a150; --warn:#d97706; --err:#dc2626; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.65 "Microsoft YaHei","PingFang SC",system-ui,sans-serif; }
+  header { background:linear-gradient(120deg,#2f6fed,#5b8cff); color:#fff; padding:18px 22px; }
+  header h1 { margin:0; font-size:19px; font-weight:600; letter-spacing:.5px; }
+  header p { margin:4px 0 0; font-size:12.5px; opacity:.92; }
+  main { max-width:980px; margin:18px auto 60px; padding:0 16px; display:grid; gap:14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; box-shadow:0 1px 3px rgba(16,30,60,.04); }
+  .card h2 { margin:0 0 10px; font-size:15px; display:flex; align-items:center; gap:8px; }
+  .card h2 .no { display:inline-flex; width:22px; height:22px; border-radius:50%; background:var(--pri); color:#fff; font-size:12.5px; align-items:center; justify-content:center; }
+  label { font-size:13px; color:var(--sub); display:block; margin:8px 0 3px; }
+  input[type=text],input[type=password],textarea { width:100%; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:13.5px/1.6 inherit; color:var(--txt); background:#fbfcfe; }
+  textarea { min-height:150px; resize:vertical; white-space:pre; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+  .row > div { flex:0 0 auto; }
+  .grow { flex:1 1 220px !important; min-width:180px; }
+  button { border:0; border-radius:8px; padding:9px 16px; font:14px inherit; cursor:pointer; background:var(--pri); color:#fff; }
+  button:hover { background:var(--pri2); }
+  button.ghost { background:#eef3ff; color:var(--pri); }
+  button.ghost:hover { background:#e0eaff; }
+  button:disabled { background:#c9d3e4; cursor:not-allowed; }
+  .msg { font-size:12.5px; margin-top:8px; min-height:18px; }
+  .msg.ok { color:var(--ok); } .msg.err { color:var(--err); } .msg.warn { color:var(--warn); }
+  .bar { height:12px; border-radius:8px; background:#e8edf6; overflow:hidden; margin:8px 0 6px; }
+  .bar > i { display:block; height:100%; width:0; background:linear-gradient(90deg,#2f6fed,#58a1ff); transition:width .5s; }
+  .kv { display:flex; flex-wrap:wrap; gap:6px 18px; font-size:13px; color:var(--sub); }
+  .kv b { color:var(--txt); font-weight:600; }
+  .chip { display:inline-block; border-radius:999px; padding:1px 10px; font-size:12px; background:#eef3ff; color:var(--pri); }
+  .chip.ok { background:#e7f7ee; color:var(--ok); } .chip.err { background:#fdecec; color:var(--err); } .chip.warn { background:#fdf3e3; color:var(--warn); }
+  details { margin-top:8px; font-size:12.5px; color:var(--sub); }
+  details summary { cursor:pointer; color:var(--pri); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--sub); font-weight:500; font-size:12.5px; }
+  .small { font-size:12px; color:var(--sub); }
+  .btnrow { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  footer { text-align:center; color:#9aa7bd; font-size:12px; padding:20px 0 40px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  @media (max-width:700px){ .grid2 { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>凤鸟企业信息批量查询 · 网页版</h1>
+  <p>网页只负责“发任务 / 看进度 / 下结果”；真正的查询在 GitHub 官方服务器上执行（关电脑也能跑）。数据存放在你自己的私有仓库中。</p>
+</header>
+<main>
+
+  <section class="card">
+    <h2><span class="no">1</span>连接设置（只需设置一次）</h2>
+    <div class="grid2">
+      <div><label>GitHub 用户名</label><input id="owner" type="text" placeholder="例如 1206642927"></div>
+      <div><label>数据仓库名（私有）</label><input id="repo" type="text" placeholder="例如 fengniao-query"></div>
+    </div>
+    <label>GitHub Token（只保存在本浏览器的 localStorage，不会上传到任何第三方）</label>
+    <input id="token" type="password" placeholder="github_pat_... 或 ghp_...">
+    <div class="btnrow">
+      <button id="saveCfg">保存设置</button>
+      <button id="testCfg" class="ghost">测试连接</button>
+      <span id="cfgMsg" class="msg"></span>
+    </div>
+    <details>
+      <summary>怎么创建 Token？（约2分钟）</summary>
+      <p>GitHub → 右上角头像 → Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate new token：</p>
+      <p>① Repository access 选 “Only select repositories” → 勾选你的数据仓库（如 fengniao-query）；<br>
+         ② Permissions 里给：<b>Contents → Read and write</b>、<b>Actions → Read and write</b>、<b>Secrets → Read and write</b>（最后一项用于“一键更新Cookie”，可以不给）；<br>
+         ③ 生成后复制粘贴到上面。也可以使用经典令牌（Classic，勾选 repo 权限）。</p>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2><span class="no">2</span>更新风鸟 Cookie（登录凭证，过期时用）</h2>
+    <textarea id="cookieBox" style="min-height:70px" placeholder='把浏览器里“复制为 cURL”的整段内容粘贴到这里（或只粘贴 Cookie 那一长串）'></textarea>
+    <div class="btnrow">
+      <button id="updateCookie" class="ghost">加密保存到仓库 Secret</button>
+      <span id="cookieMsg" class="msg"></span>
+    </div>
+    <details>
+      <summary>怎么获取风鸟 Cookie？</summary>
+      <p>用 Edge/Chrome 打开并登录 riskbird.com → 按 F12 → 「网络/Network」→ 刷新页面 → 点任意一个 <b>riskbird-api</b> 开头的请求 → 右键 → 复制 → <b>以 cURL 格式复制</b> → 整段粘贴到上面的框里。</p>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2><span class="no">3</span>企业名单 &amp; 开始查询</h2>
+    <div class="row">
+      <div class="grow">
+        <label>企业名称（一行一家；也可上传 Excel/CSV 自动填充）</label>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" style="font-size:12.5px">
+      </div>
+    </div>
+    <textarea id="namesBox" placeholder="每行一个企业名称，例如：&#10;安徽相山水泥有限责任公司&#10;淮北市某某新材料有限公司"></textarea>
+    <div class="row" style="margin-top:8px">
+      <div><label><input type="checkbox" id="fullMode"> 全维度模式（额外导出 股东/主要人员/变更/对外投资/分支机构/年报/许可，慢很多）</label></div>
+      <div style="width:150px"><label>每家间隔(毫秒)</label><input id="delay" type="text" value="1000"></div>
+      <div style="flex:0 0 auto"><button id="startBtn">开始查询</button></div>
+      <span id="namesCount" class="small"></span>
+    </div>
+    <div id="startMsg" class="msg"></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="no">4</span>当前任务</h2>
+    <div id="jobIdLine" class="kv"></div>
+    <div class="bar"><i id="jobBar"></i></div>
+    <div id="jobStats" class="kv"></div>
+    <div id="jobMsg" class="msg"></div>
+    <div class="btnrow">
+      <button id="dlXlsx" disabled>下载 Excel</button>
+      <button id="dlCsv" class="ghost" disabled>下载 CSV</button>
+      <button id="openRepo" class="ghost">打开仓库查看</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="no">5</span>历史结果（最近30个）</h2>
+    <div id="historyBox"><span class="small">点“刷新列表”加载</span></div>
+    <div class="btnrow"><button id="refreshHist" class="ghost">刷新列表</button></div>
+  </section>
+
+</main>
+<footer>查询引擎：GitHub Actions · 数据来源：风鸟（riskbird.com）· 本页面不收集任何信息</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/browsers/sodium.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var API = 'https://api.github.com';
+  var LS = 'fn_gh_cfg_v2';
+  var cfg = { owner: '1206642927', repo: 'fengniao-query', token: '' };
+  try { Object.assign(cfg, JSON.parse(localStorage.getItem(LS) || '{}')); } catch (e) { }
+  var current = null;   // {id, createdAt, timer}
+  var lastRunShown = '';
+
+  function saveCfg() {
+    cfg.owner = $('#owner').value.trim();
+    cfg.repo = $('#repo').value.trim();
+    cfg.token = $('#token').value.trim();
+    localStorage.setItem(LS, JSON.stringify(cfg));
+  }
+  function loadCfgToUI() { $('#owner').value = cfg.owner; $('#repo').value = cfg.repo; $('#token').value = cfg.token; }
+
+  function setMsg(el, text, cls) { var e = $(el); e.textContent = text || ''; e.className = 'msg ' + (cls || ''); }
+
+  function ghHeaders(extra) {
+    var h = { 'Authorization': 'Bearer ' + cfg.token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+    return Object.assign(h, extra || {});
+  }
+  function gh(path, opt) {
+    return fetch(API + path, Object.assign({ headers: ghHeaders() }, opt || {})).then(function (res) {
+      if (res.status === 204) return null;
+      return res.json().catch(function () { return null; }).then(function (j) {
+        if (!res.ok) { var m = (j && j.message) || ('HTTP ' + res.status); throw new Error(m + '（' + res.status + '）'); }
+        return j;
+      });
+    });
+  }
+  function b64enc(str) {
+    var bytes = new TextEncoder().encode(str), bin = '';
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
+  function repoOf() { return '/repos/' + cfg.owner + '/' + cfg.repo; }
+  function fileUrl(p) { return repoOf() + '/contents/' + p.split('/').map(encodeURIComponent).join('/'); }
+
+  function getRawText(p) {
+    return fetch(API + fileUrl(p) + '?ref=main&t=' + Date.now(), { cache: 'no-store', headers: ghHeaders({ 'Accept': 'application/vnd.github.raw' }) })
+      .then(function (res) { if (res.status === 404) return null; if (!res.ok) throw new Error('读取失败 HTTP ' + res.status); return res.text(); });
+  }
+  function putFile(p, text, message) {
+    var body = { message: message, content: b64enc(text), branch: 'main' };
+    var doPut = function () {
+      return fetch(API + fileUrl(p), { method: 'PUT', headers: ghHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(body) })
+        .then(function (res) { return res.json().then(function (j) { return { ok: res.ok, status: res.status, j: j }; }); });
+    };
+    return doPut().then(function (r) {
+      if (r.ok) return r.j;
+      if (r.status === 422) {
+        return gh(fileUrl(p) + '?ref=main').then(function (meta) { body.sha = meta.sha; return doPut(); })
+          .then(function (r2) { if (!r2.ok) throw new Error((r2.j && r2.j.message) || ('HTTP ' + r2.status)); return r2.j; });
+      }
+      throw new Error((r.j && r.j.message) || ('HTTP ' + r.status));
+    });
+  }
+  function dispatchJob(jobId, opts) {
+    return fetch(API + repoOf() + '/actions/workflows/query.yml/dispatches', {
+      method: 'POST', headers: ghHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ ref: 'main', inputs: { jobId: jobId, full: String(!!opts.full), delay: String(opts.delay || 1000) } })
+    }).then(function (res) { if (!res.ok && res.status !== 204) return res.json().then(function (j) { throw new Error((j && j.message) || ('HTTP ' + res.status)); }); });
+  }
+  function download(p, filename) {
+    return fetch(API + fileUrl(p) + '?ref=main&t=' + Date.now(), { headers: ghHeaders({ 'Accept': 'application/vnd.github.raw' }) })
+      .then(function (res) { if (!res.ok) throw new Error('下载失败 HTTP ' + res.status); return res.blob(); })
+      .then(function (blob) {
+        var url = URL.createObjectURL(blob), a = document.createElement('a');
+        a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+        setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 5000);
+      });
+  }
+
+  // ---------- 名单解析 ----------
+  function parseNames(text) {
+    var arr = String(text || '').split(/[\r\n]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+    arr = arr.filter(function (s) { return !/^(企业名称|公司名称|单位名称|名称)[,，]?/.test(s) || s.length > 12; });
+    var seen = {}, out = [];
+    arr.forEach(function (s) { if (!seen[s]) { seen[s] = 1; out.push(s); } });
+    return out;
+  }
+  function refreshCount() { var n = parseNames($('#namesBox').value); $('#namesCount').textContent = n.length ? ('共 ' + n.length + ' 家（已去重）') : ''; }
+  $('#namesBox').addEventListener('input', refreshCount);
+  $('#fileInput').addEventListener('change', function (ev) {
+    var f = ev.target.files && ev.target.files[0]; if (!f) return;
+    var done = function (names) {
+      var cur = parseNames($('#namesBox').value);
+      $('#namesBox').value = cur.concat(names).join('\n'); refreshCount();
+      setMsg('#startMsg', '已从文件读取 ' + names.length + ' 个名称', 'ok');
+    };
+    f.arrayBuffer().then(function (buf) {
+      if (/\.(xlsx|xls)$/i.test(f.name)) {
+        try {
+          var wb = XLSX.read(buf, { type: 'array' });
+          var ws = wb.Sheets[wb.SheetNames[0]];
+          var rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+          var names = [], headerIdx = -1, nameCol = 0;
+          var NAME_KEYS = ['企业名称', '公司名称', '单位名称', '企业', '名称'];
+          for (var i = 0; i < Math.min(5, rows.length); i++) {
+            var r = rows[i].map(function (x) { return String(x).trim(); });
+            var ni = r.findIndex(function (c) { return NAME_KEYS.indexOf(c) >= 0; });
+            if (ni >= 0) { headerIdx = i; nameCol = ni; break; }
+          }
+          for (var j = headerIdx + 1; j < rows.length; j++) { var n = String(rows[j][nameCol] || '').trim(); if (n) names.push(n); }
+          done(names);
+        } catch (e) { setMsg('#startMsg', 'Excel 解析失败：' + e.message, 'err'); }
+      } else {
+        var text = new TextDecoder().decode(buf);
+        done(parseNames(text));
+      }
+    }).catch(function (e) { setMsg('#startMsg', '读取文件失败：' + e.message, 'err'); });
+  });
+
+  // ---------- 提交任务 ----------
+  function genJobId() {
+    var d = new Date(), p = function (n) { return String(n).padStart(2, '0'); };
+    return 'j' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + '-' + Math.floor(Math.random() * 90 + 10);
+  }
+  $('#startBtn').addEventListener('click', function () {
+    saveCfg();
+    if (!cfg.owner || !cfg.repo) return setMsg('#startMsg', '请先填写用户名和仓库名', 'err');
+    if (!cfg.token) return setMsg('#startMsg', '请先填写 GitHub Token', 'err');
+    var names = parseNames($('#namesBox').value);
+    if (!names.length) return setMsg('#startMsg', '请先填入企业名单', 'err');
+    var full = $('#fullMode').checked;
+    var delay = parseInt($('#delay').value, 10) || 1000;
+    if (delay < 600) delay = 600;
+    if (full && names.length > 50 && !confirm('全维度模式每家请求较多，' + names.length + ' 家可能跑很久，确认继续？')) return;
+    var jobId = genJobId();
+    setMsg('#startMsg', '正在提交任务……', '');
+    var job = { id: jobId, createdAt: new Date().toISOString(), names: names, opts: { full: full, delay: delay } };
+    putFile('inbox/' + jobId + '.json', JSON.stringify(job), '任务 ' + jobId)
+      .then(function () { return dispatchJob(jobId, job.opts); })
+      .then(function () {
+        setMsg('#startMsg', '已提交！云端启动约需 1~3 分钟，下面会自动刷新进度。', 'ok');
+        beginWatch(jobId, full);
+      })
+      .catch(function (e) { setMsg('#startMsg', '提交失败：' + e.message, 'err'); });
+  });
+
+  // ---------- 进度轮询 ----------
+  function beginWatch(jobId, full) {
+    if (current && current.timer) clearInterval(current.timer);
+    current = { id: jobId, createdAt: Date.now(), full: full, timer: null, ticks: 0, last: null };
+    $('#jobIdLine').innerHTML = '<span>任务ID：<b>' + esc(jobId) + '</b></span><span>模式：<b>' + (full ? '全维度' : '基础') + '</b></span><span>提交时间：<b>' + new Date().toLocaleTimeString('zh-CN', { hour12: false }) + '</b></span>';
+    setJobButtons(false);
+    pollOnce();
+    current.timer = setInterval(pollOnce, 7000);
+  }
+  function setJobButtons(enable) {
+    $('#dlXlsx').disabled = !enable; $('#dlCsv').disabled = !enable;
+  }
+  function pollOnce() {
+    if (!current) return;
+    var jobId = current.id;
+    current.ticks++;
+    getRawText('outbox/' + jobId + '.progress.json').then(function (text) {
+      if (text) {
+        var st = JSON.parse(text);
+        renderProgress(st);
+        if (st.status === 'done' || st.status === 'failed') { clearInterval(current.timer); setJobButtons(st.done > 0); }
+      } else {
+        $('#jobMsg').textContent = '云端排队/启动中……（首次运行约 1~3 分钟出进度）';
+      }
+    }).catch(function (e) { $('#jobMsg').textContent = '读取进度失败：' + e.message; });
+    if (current.ticks % 3 === 1) checkRun(jobId, current.createdAt);
+  }
+  function checkRun(jobId, createdAt) {
+    gh(repoOf() + '/actions/runs?per_page=8').then(function (j) {
+      var runs = (j && j.workflow_runs) || [];
+      var run = null;
+      for (var i = 0; i < runs.length; i++) { if (new Date(runs[i].created_at).getTime() >= createdAt - 180000) { run = runs[i]; break; } }
+      if (!run) return;
+      var label = run.status === 'completed' ? (run.conclusion === 'success' ? '已完成' : ('已结束（' + run.conclusion + '）')) : (run.status === 'queued' ? '排队中' : '运行中');
+      $('#jobIdLine').innerHTML = '<span>任务ID：<b>' + esc(jobId) + '</b></span><span>云端状态：<span class="chip ' + (run.status === 'completed' ? (run.conclusion === 'success' ? 'ok' : 'err') : 'warn') + '">' + esc(label) + '</span></span><span><a href="' + run.html_url + '" target="_blank">查看运行日志</a></span>';
+    }).catch(function () { });
+  }
+  function renderProgress(st) {
+    var pct = st.total ? Math.round(st.done * 100 / st.total) : 0;
+    $('#jobBar').style.width = pct + '%';
+    var eta = '';
+    if (st.done > 0 && st.status === 'running') {
+      var used = Date.now() - new Date(st.startedAt).getTime();
+      var remain = used / st.done * (st.total - st.done);
+      eta = '预计还需 ' + fmtDur(remain);
+    }
+    $('#jobStats').innerHTML =
+      '<span>进度：<b>' + st.done + ' / ' + st.total + '</b>（' + pct + '%）</span>' +
+      '<span>成功：<b>' + st.ok + '</b></span><span>失败：<b>' + st.fail + '</b></span>' +
+      (st.lastName ? '<span>最近完成：<b>' + esc(st.lastName) + '</b></span>' : '') +
+      (eta ? '<span>' + eta + '</span>' : '');
+    if (st.status === 'done') { $('#jobMsg').textContent = '✅ 查询完成，可以下载结果了。'; $('#jobBar').style.width = '100%'; }
+    else if (st.status === 'failed') { $('#jobMsg').textContent = '⚠️ 任务结束：' + (st.message || '有错误，可下载已完成部分'); }
+    else { $('#jobMsg').textContent = '运行中……最后更新 ' + new Date(st.updatedAt).toLocaleTimeString('zh-CN', { hour12: false }); }
+  }
+  $('#dlXlsx').addEventListener('click', function () { if (current) download('outbox/' + current.id + '.结果.xlsx', '凤鸟查询结果_' + current.id + '.xlsx').catch(function (e) { alert(e.message); }); });
+  $('#dlCsv').addEventListener('click', function () { if (current) download('outbox/' + current.id + '.结果.csv', '凤鸟查询结果_' + current.id + '.csv').catch(function (e) { alert(e.message); }); });
+  $('#openRepo').addEventListener('click', function () { window.open('https://github.com/' + cfg.owner + '/' + cfg.repo, '_blank'); });
+
+  // ---------- 历史结果 ----------
+  function refreshHistory() {
+    saveCfg();
+    if (!cfg.owner || !cfg.repo) { $('#historyBox').innerHTML = '<span class="small">请先完成“连接设置”</span>'; return; }
+    $('#historyBox').innerHTML = '<span class="small">加载中……</span>';
+    gh(fileUrl('outbox') + '?ref=main&t=' + Date.now()).then(function (items) {
+      var files = (items || []).filter(function (x) { return x.type === 'file' && /\.结果\.xlsx$/.test(x.name); })
+        .sort(function (a, b) { return b.name < a.name ? -1 : 1; }).slice(0, 30);
+      if (!files.length) { $('#historyBox').innerHTML = '<span class="small">还没有历史结果</span>'; return; }
+      var html = '<table><thead><tr><th>任务</th><th>大小</th><th style="width:220px">操作</th></tr></thead><tbody>';
+      files.forEach(function (f) {
+        var id = f.name.replace(/\.结果\.xlsx$/, '');
+        html += '<tr><td>' + esc(id) + '</td><td>' + fmtSize(f.size) + '</td><td>' +
+          '<button class="ghost dl-x" data-id="' + esc(id) + '">Excel</button> ' +
+          '<button class="ghost dl-c" data-id="' + esc(id) + '">CSV</button></td></tr>';
+      });
+      html += '</tbody></table>';
+      $('#historyBox').innerHTML = html;
+      $('#historyBox').querySelectorAll('.dl-x').forEach(function (b) {
+        b.addEventListener('click', function () { var id = b.getAttribute('data-id'); download('outbox/' + id + '.结果.xlsx', '凤鸟查询结果_' + id + '.xlsx').catch(function (e) { alert(e.message); }); });
+      });
+      $('#historyBox').querySelectorAll('.dl-c').forEach(function (b) {
+        b.addEventListener('click', function () { var id = b.getAttribute('data-id'); download('outbox/' + id + '.结果.csv', '凤鸟查询结果_' + id + '.csv').catch(function (e) { alert(e.message); }); });
+      });
+    }).catch(function (e) { $('#historyBox').innerHTML = '<span class="small">加载失败：' + esc(e.message) + '（如果仓库还是空的，先跑一次任务吧）</span>'; });
+  }
+
+  // ---------- Cookie 更新 ----------
+  function extractCookie(raw) {
+    var c = String(raw || '').trim();
+    if (c.includes('^"')) c = c.replace(/\^/g, '');
+    if (/curl/i.test(c)) {
+      var pats = [/-b\s+"([^"]+)"/, /-b\s+'([^']+)'/, /-H\s+"cookie:\s*([^"]+)"/i, /-H\s+'cookie:\s*([^']+)'/i, /-H\s+cookie:\s*([^\r\n]+)/i];
+      for (var i = 0; i < pats.length; i++) { var m = c.match(pats[i]); if (m) { c = m[1]; break; } }
+    }
+    c = c.split('\n')[0].trim().replace(/;$/, '');
+    if (c.indexOf('token=') < 0) return null;
+    return c;
+  }
+  $('#updateCookie').addEventListener('click', function () {
+    saveCfg();
+    if (!cfg.owner || !cfg.repo || !cfg.token) return setMsg('#cookieMsg', '请先完成“连接设置”', 'err');
+    var cookie = extractCookie($('#cookieBox').value);
+    if (!cookie) return setMsg('#cookieMsg', '没有解析到有效 cookie（需包含 token=...）', 'err');
+    if (typeof sodium === 'undefined') return setMsg('#cookieMsg', '加密组件加载失败（CDN 被拦截？），可改为在 GitHub 仓库里手动更新 Secret', 'err');
+    setMsg('#cookieMsg', '正在加密并保存……', '');
+    sodium.ready.then(function () {
+      return gh(repoOf() + '/actions/secrets/public-key');
+    }).then(function (pk) {
+      var bin = sodium.from_string(cookie);
+      var enc = sodium.crypto_box_seal(bin, sodium.from_base64(pk.key, sodium.base64_variants.ORIGINAL));
+      var val = sodium.to_base64(enc, sodium.base64_variants.ORIGINAL);
+      return fetch(API + repoOf() + '/actions/secrets/RISKBIRD_COOKIE', {
+        method: 'PUT', headers: ghHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ encrypted_value: val, key_id: pk.key_id })
+      }).then(function (res) { if (!res.ok && res.status !== 201 && res.status !== 204) return res.json().then(function (j) { throw new Error((j && j.message) || ('HTTP ' + res.status)); }); });
+    }).then(function () {
+      setMsg('#cookieMsg', '✅ 已加密保存到仓库 Secret（下一个任务生效）', 'ok');
+      $('#cookieBox').value = '';
+    }).catch(function (e) {
+      setMsg('#cookieMsg', '保存失败：' + e.message + '（Token 需要 Secrets 写权限；也可以在 GitHub 仓库 Settings → Secrets 里手动更新）', 'err');
+    });
+  });
+
+  // ---------- 连接测试 ----------
+  $('#saveCfg').addEventListener('click', function () { saveCfg(); setMsg('#cfgMsg', '已保存到本浏览器', 'ok'); });
+  $('#testCfg').addEventListener('click', function () {
+    saveCfg();
+    if (!cfg.owner || !cfg.repo || !cfg.token) return setMsg('#cfgMsg', '请先填写完整', 'err');
+    setMsg('#cfgMsg', '测试中……', '');
+    gh(repoOf()).then(function (j) {
+      var msg = '✅ 连接成功：' + j.full_name + (j.private ? '（私有仓库）' : '（公开仓库！建议改为私有）');
+      return gh(repoOf() + '/actions/secrets').then(function (s) {
+        var has = (s.secrets || []).some(function (x) { return x.name === 'RISKBIRD_COOKIE'; });
+        setMsg('#cfgMsg', msg + (has ? ' · Cookie Secret 已配置' : ' · ⚠️ 还没配置 RISKBIRD_COOKIE'), has ? 'ok' : 'warn');
+      }).catch(function () { setMsg('#cfgMsg', msg, 'ok'); });
+    }).catch(function (e) { setMsg('#cfgMsg', '连接失败：' + e.message, 'err'); });
+  });
+
+  // ---------- 工具 ----------
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]; }); }
+  function fmtSize(n) { return n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB'; }
+  function fmtDur(ms) { var m = Math.round(ms / 60000); return m >= 1 ? (m + ' 分钟') : (Math.round(ms / 1000) + ' 秒'); }
+
+  loadCfgToUI();
+  refreshCount();
+  refreshHistory();
+})();
+</script>
+</body>
+</html>
